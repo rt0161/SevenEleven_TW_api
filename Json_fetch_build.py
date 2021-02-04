@@ -7,9 +7,9 @@ import pandas as pd
 import requests
 import json
 
+from secrets import PASSWORD
 
 source_url = 'https://raw.githubusercontent.com/ctiml/convenience-store-data/master/7-11/台北市.json'
-PASSWORD = '1234'
 DBNAME = 'taipei_seven'
 COLLECTION_NAME = 'taipei_seven'
 mongo_server_url = "mongodb+srv://Admin:"+PASSWORD+"@cluster0.owy49.mongodb.net/"+DBNAME+"?retryWrites=true&w=majority"
