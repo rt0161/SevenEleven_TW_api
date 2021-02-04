@@ -1,0 +1,709 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 24,
+   "id": "induced-luxury",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import pymongo\n",
+    "from pprint import pprint"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 131,
+   "id": "noted-insured",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "source_url = 'https://raw.githubusercontent.com/ctiml/convenience-store-data/master/7-11/台北市.json'\n",
+    "PASSWORD = '1234'\n",
+    "DBNAME = 'taipei_seven'\n",
+    "COLLECTION_NAME = 'taipei_seven'\n",
+    "mongo_server_url = \"mongodb+srv://Admin:\"+PASSWORD+\"@cluster0.owy49.mongodb.net/\"+DBNAME+\"?retryWrites=true&w=majority\""
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 132,
+   "id": "hispanic-vinyl",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def mongo_connect_db(mongo_server_url, dbname):\n",
+    "    try:\n",
+    "        cluster = pymongo.MongoClient(mongo_server_url)\n",
+    "        cluster.server_info()\n",
+    "    except pymongo.errors.ServerSelectionTimeoutError as err:\n",
+    "        logger.error(err)\n",
+    "    except pymongo.errors.ConnectionFailure as err:\n",
+    "        logger.error(err)\n",
+    "    except pymongo.errors.InvalidURI as err:\n",
+    "        logger.error(err)\n",
+    "    except pymongo.errors.OperationFailure as err:\n",
+    "        logger.error(err)\n",
+    "    except:\n",
+    "        logger.error(\"connection error. Unknown issue.\")\n",
+    "\n",
+    "    db=cluster[dbname]\n",
+    "\n",
+    "    return db"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 133,
+   "id": "independent-blade",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "db = mongo_connect_db(mongo_server_url, DBNAME)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 135,
+   "id": "civil-march",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "<ipython-input-135-8ff4d2505e25>:1: DeprecationWarning: collection_names is deprecated. Use list_collection_names instead.\n",
+      "  db.collection_names()\n"
+     ]
+    },
+    {
+     "data": {
+      "text/plain": [
+       "['taipei_seven']"
+      ]
+     },
+     "execution_count": 135,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "db.collection_names()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 96,
+   "id": "failing-bracelet",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "'coord'"
+      ]
+     },
+     "execution_count": 96,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "db[COLLECTION_NAME].create_index([(\"location.coordinates\",pymongo.GEO2D)], name=\"coord\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 82,
+   "id": "nervous-youth",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "'location'"
+      ]
+     },
+     "execution_count": 82,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "db[COLLECTION_NAME].create_index([(\"location\",pymongo.GEOSPHERE)], name=\"location\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 97,
+   "id": "structured-fence",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "{'_id_': {'key': [('_id', 1)], 'v': 2},\n",
+      " 'coord': {'key': [('location.coordinates', '2d')], 'v': 2},\n",
+      " 'location': {'2dsphereIndexVersion': 3,\n",
+      "              'key': [('location', '2dsphere')],\n",
+      "              'v': 2}}\n"
+     ]
+    }
+   ],
+   "source": [
+    "pprint(db[COLLECTION_NAME].index_information())"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 124,
+   "id": "reverse-attribute",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "rmax = 1 # km\n",
+    "EARTH_RADIUS= 6371\n",
+    "convRad = rmax/EARTH_RADIUS"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 125,
+   "id": "removable-opinion",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "0.0001569612305760477"
+      ]
+     },
+     "execution_count": 125,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "convRad"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 126,
+   "id": "parallel-windsor",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "result= db[COLLECTION_NAME].find({'location.coordinates': \n",
+    "                                 {'$nearSphere':[121.548, 25.056],\n",
+    "                                  '$maxDistance':convRad}\n",
+    "                                 })"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 127,
+   "id": "thermal-treatment",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "41"
+      ]
+     },
+     "execution_count": 127,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "result.explain()['executionStats']['nReturned']"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 112,
+   "id": "legal-broad",
+   "metadata": {
+    "collapsed": true,
+    "jupyter": {
+     "outputs_hidden": true
+    }
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "{'Address': '台北市松山區敦化北路168號B2',\n",
+      " 'POIName': '上弘',\n",
+      " '_id': 972907,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.548287, 25.05639], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區民生東路3段130巷5弄14號1樓',\n",
+      " 'POIName': '慶民',\n",
+      " '_id': 115993,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.54678, 25.056996], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區敦化北路199巷2弄9號1樓',\n",
+      " 'POIName': '長塑',\n",
+      " '_id': 141785,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.550051, 25.055525], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區敦化北路149號1樓',\n",
+      " 'POIName': '敦北',\n",
+      " '_id': 114554,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.549585, 25.054074], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區民生東路3段127巷6號',\n",
+      " 'POIName': '民北',\n",
+      " '_id': 918419,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.54741, 25.058518], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區民生東路4段54號之2一樓',\n",
+      " 'POIName': '明塑',\n",
+      " '_id': 135089,\n",
+      " 'isDining': False,\n",
+      " 'location': {'coordinates': [121.550862, 25.057384], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區敦化北路100號1樓',\n",
+      " 'POIName': '錢京',\n",
+      " '_id': 131593,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.548322, 25.052738], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區復興北路231巷6號',\n",
+      " 'POIName': '復安',\n",
+      " '_id': 943943,\n",
+      " 'isDining': False,\n",
+      " 'location': {'coordinates': [121.544852, 25.056989], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區民生東路4段55巷10號',\n",
+      " 'POIName': '東鑫',\n",
+      " '_id': 164803,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.550472, 25.058359], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區復興北路313巷25號',\n",
+      " 'POIName': '東復',\n",
+      " '_id': 111407,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.546337, 25.059074], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區南京東路3段303巷5號',\n",
+      " 'POIName': '南京',\n",
+      " '_id': 961055,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.546691, 25.052477], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區復興北路179號',\n",
+      " 'POIName': '復春',\n",
+      " '_id': 961963,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.544337, 25.054422], 'type': 'Point'}}\n",
+      "{'Address': '台北市中山區興安街112號一樓',\n",
+      " 'POIName': '興復',\n",
+      " '_id': 142881,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.543131, 25.055987], 'type': 'Point'}}\n",
+      "{'Address': '台北市中山區復興北路164號1樓',\n",
+      " 'POIName': '復北',\n",
+      " '_id': 132493,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.543829, 25.053385], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區民權東路三段160巷9號1樓',\n",
+      " 'POIName': '敦化',\n",
+      " '_id': 142755,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.547919, 25.061025], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區南京東路4段51號之2',\n",
+      " 'POIName': '首都',\n",
+      " '_id': 164179,\n",
+      " 'isDining': False,\n",
+      " 'location': {'coordinates': [121.55106, 25.051809], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區健康路11號',\n",
+      " 'POIName': '健一',\n",
+      " '_id': 141992,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.552453, 25.053224], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區南京東路四段10之1號 B1F',\n",
+      " 'POIName': '巨蛋站',\n",
+      " '_id': 161387,\n",
+      " 'isDining': False,\n",
+      " 'location': {'coordinates': [121.550836, 25.051489], 'type': 'Point'}}\n",
+      "{'Address': '台北市中山區復興北路352號',\n",
+      " 'POIName': '復錦',\n",
+      " '_id': 975685,\n",
+      " 'isDining': False,\n",
+      " 'location': {'coordinates': [121.54402, 25.060105], 'type': 'Point'}}\n",
+      "{'Address': '台北市中山區南京東路3段208號1樓',\n",
+      " 'POIName': '威克',\n",
+      " '_id': 991584,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.543105, 25.051615], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區民權東路3段108號',\n",
+      " 'POIName': '民有',\n",
+      " '_id': 961295,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.544998, 25.061936], 'type': 'Point'}}\n",
+      "{'Address': '台北市中山區遼寧街110號1樓',\n",
+      " 'POIName': '元大',\n",
+      " '_id': 996741,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.541925, 25.052637], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區復興北路35號',\n",
+      " 'POIName': '樂得',\n",
+      " '_id': 906209,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.544193, 25.050146], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區北寧路66號',\n",
+      " 'POIName': '北體',\n",
+      " '_id': 158923,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.55285, 25.050888], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區南京東路四段56-1號',\n",
+      " 'POIName': '京育',\n",
+      " '_id': 135517,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.553752, 25.051459], 'type': 'Point'}}\n",
+      "{'Address': '台北市中山區龍江路239號1樓',\n",
+      " 'POIName': '建龍',\n",
+      " '_id': 140955,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.540944, 25.058208], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區民生東路四段130號',\n",
+      " 'POIName': '民復',\n",
+      " '_id': 135090,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.555146, 25.058106], 'type': 'Point'}}\n",
+      "{'Address': '台北市中山區長春路257號',\n",
+      " 'POIName': '春龍',\n",
+      " '_id': 164777,\n",
+      " 'isDining': False,\n",
+      " 'location': {'coordinates': [121.540615, 25.054752], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區八德路2段439號',\n",
+      " 'POIName': '清愿',\n",
+      " '_id': 916527,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.546946, 25.048327], 'type': 'Point'}}\n",
+      "{'Address': '台北市中山區民權東路3段73號',\n",
+      " 'POIName': '權東',\n",
+      " '_id': 119445,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.54358, 25.062525], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區南京東路4段131號',\n",
+      " 'POIName': '東勢',\n",
+      " '_id': 928793,\n",
+      " 'isDining': False,\n",
+      " 'location': {'coordinates': [121.555025, 25.051768], 'type': 'Point'}}\n",
+      "{'Address': '台北市中山區龍江路281-1號',\n",
+      " 'POIName': '錦龍',\n",
+      " '_id': 864864,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.540835, 25.06016], 'type': 'Point'}}\n",
+      "{'Address': '台北市中山區龍江路104號1樓',\n",
+      " 'POIName': '龍京',\n",
+      " '_id': 142814,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.540255, 25.052833], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區八德路2段366巷7號1樓',\n",
+      " 'POIName': '庫德',\n",
+      " '_id': 153320,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.546062, 25.047815], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區延壽街422號',\n",
+      " 'POIName': '延壽',\n",
+      " '_id': 937270,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.556423, 25.056236], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區敦化北路340-9號',\n",
+      " 'POIName': '松航',\n",
+      " '_id': 135643,\n",
+      " 'isDining': False,\n",
+      " 'location': {'coordinates': [121.551514, 25.063718], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區八德路三段20-2號',\n",
+      " 'POIName': '台場',\n",
+      " '_id': 112248,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.551158, 25.048086], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區敦化南路1段5號',\n",
+      " 'POIName': '復旦',\n",
+      " '_id': 915270,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.549139, 25.047157], 'type': 'Point'}}\n",
+      "{'Address': '台北市中山區合江街60號',\n",
+      " 'POIName': '合江',\n",
+      " '_id': 926432,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.539056, 25.055827], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區八德路3段27號',\n",
+      " 'POIName': '中崙',\n",
+      " '_id': 960661,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.552737, 25.048396], 'type': 'Point'}}\n"
+     ]
+    }
+   ],
+   "source": [
+    "for doc in result:\n",
+    "    pprint(doc)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 148,
+   "id": "covered-reliance",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "result= db[COLLECTION_NAME].find({'location.coordinates': \n",
+    "                                 {'$nearSphere':[121.548, 25.056],\n",
+    "                                  '$maxDistance':convRad},\n",
+    "                                  'isDining': True\n",
+    "                                 })"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 149,
+   "id": "downtown-detector",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "33"
+      ]
+     },
+     "execution_count": 149,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "result.explain()['executionStats']['nReturned']"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 130,
+   "id": "danish-secondary",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "{'Address': '台北市松山區敦化北路168號B2',\n",
+      " 'POIName': '上弘',\n",
+      " '_id': 972907,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.548287, 25.05639], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區民生東路3段130巷5弄14號1樓',\n",
+      " 'POIName': '慶民',\n",
+      " '_id': 115993,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.54678, 25.056996], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區敦化北路199巷2弄9號1樓',\n",
+      " 'POIName': '長塑',\n",
+      " '_id': 141785,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.550051, 25.055525], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區敦化北路149號1樓',\n",
+      " 'POIName': '敦北',\n",
+      " '_id': 114554,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.549585, 25.054074], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區民生東路3段127巷6號',\n",
+      " 'POIName': '民北',\n",
+      " '_id': 918419,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.54741, 25.058518], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區民生東路4段55巷10號',\n",
+      " 'POIName': '東鑫',\n",
+      " '_id': 164803,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.550472, 25.058359], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區敦化北路100號1樓',\n",
+      " 'POIName': '錢京',\n",
+      " '_id': 131593,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.548322, 25.052738], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區復興北路313巷25號',\n",
+      " 'POIName': '東復',\n",
+      " '_id': 111407,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.546337, 25.059074], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區復興北路179號',\n",
+      " 'POIName': '復春',\n",
+      " '_id': 961963,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.544337, 25.054422], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區南京東路3段303巷5號',\n",
+      " 'POIName': '南京',\n",
+      " '_id': 961055,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.546691, 25.052477], 'type': 'Point'}}\n",
+      "{'Address': '台北市中山區興安街112號一樓',\n",
+      " 'POIName': '興復',\n",
+      " '_id': 142881,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.543131, 25.055987], 'type': 'Point'}}\n",
+      "{'Address': '台北市中山區復興北路164號1樓',\n",
+      " 'POIName': '復北',\n",
+      " '_id': 132493,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.543829, 25.053385], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區健康路11號',\n",
+      " 'POIName': '健一',\n",
+      " '_id': 141992,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.552453, 25.053224], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區民權東路三段160巷9號1樓',\n",
+      " 'POIName': '敦化',\n",
+      " '_id': 142755,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.547919, 25.061025], 'type': 'Point'}}\n",
+      "{'Address': '台北市中山區南京東路3段208號1樓',\n",
+      " 'POIName': '威克',\n",
+      " '_id': 991584,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.543105, 25.051615], 'type': 'Point'}}\n",
+      "{'Address': '台北市中山區遼寧街110號1樓',\n",
+      " 'POIName': '元大',\n",
+      " '_id': 996741,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.541925, 25.052637], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區民權東路3段108號',\n",
+      " 'POIName': '民有',\n",
+      " '_id': 961295,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.544998, 25.061936], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區北寧路66號',\n",
+      " 'POIName': '北體',\n",
+      " '_id': 158923,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.55285, 25.050888], 'type': 'Point'}}\n",
+      "{'Address': '台北市中山區龍江路239號1樓',\n",
+      " 'POIName': '建龍',\n",
+      " '_id': 140955,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.540944, 25.058208], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區復興北路35號',\n",
+      " 'POIName': '樂得',\n",
+      " '_id': 906209,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.544193, 25.050146], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區民生東路四段130號',\n",
+      " 'POIName': '民復',\n",
+      " '_id': 135090,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.555146, 25.058106], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區南京東路四段56-1號',\n",
+      " 'POIName': '京育',\n",
+      " '_id': 135517,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.553752, 25.051459], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區延壽街422號',\n",
+      " 'POIName': '延壽',\n",
+      " '_id': 937270,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.556423, 25.056236], 'type': 'Point'}}\n",
+      "{'Address': '台北市中山區民權東路3段73號',\n",
+      " 'POIName': '權東',\n",
+      " '_id': 119445,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.54358, 25.062525], 'type': 'Point'}}\n",
+      "{'Address': '台北市中山區龍江路104號1樓',\n",
+      " 'POIName': '龍京',\n",
+      " '_id': 142814,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.540255, 25.052833], 'type': 'Point'}}\n",
+      "{'Address': '台北市中山區龍江路281-1號',\n",
+      " 'POIName': '錦龍',\n",
+      " '_id': 864864,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.540835, 25.06016], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區八德路2段439號',\n",
+      " 'POIName': '清愿',\n",
+      " '_id': 916527,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.546946, 25.048327], 'type': 'Point'}}\n",
+      "{'Address': '台北市中山區合江街60號',\n",
+      " 'POIName': '合江',\n",
+      " '_id': 926432,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.539056, 25.055827], 'type': 'Point'}}\n",
+      "{'Address': '台北市中山區民生東路3段31號',\n",
+      " 'POIName': '新西華',\n",
+      " '_id': 148580,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.539101, 25.058018], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區八德路2段366巷7號1樓',\n",
+      " 'POIName': '庫德',\n",
+      " '_id': 153320,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.546062, 25.047815], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區八德路三段20-2號',\n",
+      " 'POIName': '台場',\n",
+      " '_id': 112248,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.551158, 25.048086], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區八德路3段27號',\n",
+      " 'POIName': '中崙',\n",
+      " '_id': 960661,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.552737, 25.048396], 'type': 'Point'}}\n",
+      "{'Address': '台北市松山區敦化南路1段5號',\n",
+      " 'POIName': '復旦',\n",
+      " '_id': 915270,\n",
+      " 'isDining': True,\n",
+      " 'location': {'coordinates': [121.549139, 25.047157], 'type': 'Point'}}\n"
+     ]
+    }
+   ],
+   "source": [
+    "for doc in result:\n",
+    "    pprint(doc)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 146,
+   "id": "front-static",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "loaddict= []\n",
+    "for doc in result:\n",
+    "    print(type(doc))\n",
+    "    loaddict+=[doc]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "dedicated-treasury",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "env",
+   "language": "python",
+   "name": "env"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.9.1"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
