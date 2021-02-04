@@ -4,6 +4,7 @@ from flask import request
 from flask_pymongo import PyMongo
 import json
 from bson.json_util import dumps
+from secrets import PASSWORD
 
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -13,7 +14,6 @@ app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False
 
 
-PASSWORD = '1234'
 DBNAME = 'taipei_seven'
 app.config['DBNAME'] = DBNAME
 MONGO_URI = "mongodb+srv://Admin:"+PASSWORD+"@cluster0.owy49.mongodb.net/"+DBNAME+"?retryWrites=true&w=majority"
