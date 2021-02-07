@@ -1,0 +1,179 @@
+---
+openapi: 3.0.2
+info:
+  title: SevenSearchWithin
+  version: 1.0.0
+  description: An API used to query and find all 7-11 locations within X m distance
+    from a specified location geo-coordinates(long/lat).
+  contact:
+    name: Open Data Portal
+    url: https://developer.funwoo.com.tw
+    email: developer@funwoo.com.tw
+servers:
+- url: "{scheme}://developer.funwoo.com.tw/ds-api"
+  variables:
+    scheme:
+      enum:
+      - https
+      - http
+      default: https
+      description: The Data Set API is accessible via https and http
+paths:
+  "/search_within/":
+    summary: Provides search capability for searching 7-11 within X km of distance
+      to specified location
+    description: Provides search capability for searching 7-11 within X km of distance
+      to specified location
+    post:
+      requestBody:
+        description: query input
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/search"
+            examples:
+              query_input:
+                value:
+                  longitude: 121.548
+                  latitude: 25.0563
+                  dist: 10
+              query_input_withDining:
+                value:
+                  longitude: 70.43
+                  latitude: 49.92
+                  dist: 71
+                  isDining: true
+        required: true
+      tags:
+      - search
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/7-11_stores"
+              examples:
+                query_response:
+                  value:
+                    result:
+                    - Address: 台北市松山區敦化北路168號B2
+                      POIName: 上弘
+                      _id: 972907
+                      isDining: true
+                      location:
+                        coordinates:
+                        - 121.548287
+                        - 25.05639
+                        type: Point
+                    - Address: 台北市松山區民生東路3段130巷5弄14號1樓
+                      POIName: 慶民
+                      _id: 115993
+                      isDining: true
+                      location:
+                        coordinates:
+                        - 121.54678
+                        - 25.056996
+                        type: Point
+          description: Good database response with store data contained in response.
+        '204':
+          content:
+            application/json:
+              examples:
+                Empty result:
+                  value:
+                    result: []
+          description: No stores had been found.
+        '400':
+          content:
+            application/json: {}
+          description: Missing post content.
+        '404':
+          description: Database server error.
+      summary: Provides search capability for searching 7-11 within X km of distance
+        to specified location
+      description: Provides search capability for searching 7-11 within X km of distance
+        to specified location
+components:
+  schemas:
+    7-11_stores:
+      description: 7-11 stores
+      required:
+      - _id
+      - POI_Name
+      - Address
+      - location
+      type: object
+      properties:
+        _id:
+          description: The ID of the store.
+          type: integer
+        POI_Name:
+          description: Name of the store locale.
+          type: string
+        Address:
+          description: Store address in detail.
+          type: string
+        isDining:
+          description: Whether in-store dining is allowed or serviced.
+          type: boolean
+        location:
+          "$ref": "#/components/schemas/store_location"
+          description: geo-location of the store.
+      example:
+        Address: 台北市松山區敦化北路168號B2
+        POIName: 上弘
+        _id: 972907
+        isDining: true
+        location:
+          coordinates:
+          - 121.548287
+          - 25.05639
+          type: Point
+    store_location:
+      title: Root Type for store_location
+      description: the geo-location /coordinates of the store.
+      type: object
+      properties:
+        coordinates:
+          description: Coordinates longitude, latitude
+          type: array
+          items:
+            format: double
+            type: number
+        type:
+          description: geospatial data type. (point/polygon/line)
+          type: string
+      example:
+        coordinates:
+        - 121.539297
+        - 25.060348
+        type: Point
+    search:
+      title: Root Type for search
+      description: A search query input
+      type: object
+      properties:
+        longitude:
+          format: double
+          type: number
+        latitude:
+          format: double
+          type: number
+        dist:
+          format: int32
+          description: Distance in UNIT KILOMETER.
+          type: integer
+        isDining:
+          description: optional input to query if the store offers dining.
+          type: boolean
+      example:
+        longitude: 121.548
+        latitude: 25.0563
+        dist: 1
+        isDining: true
+tags:
+- name: metadata
+  description: Find out about the data sets
+- name: search
+  description: Search a data set
+
