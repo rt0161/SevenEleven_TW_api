@@ -1,0 +1,1 @@
+curl -iX POST -H "Content-Type: application/json" "localhost:9000/search_within/" --data '{"longitude": 121.548, "latitude": 25.0563, "dist": 0.1}'
